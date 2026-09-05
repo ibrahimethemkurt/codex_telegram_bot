@@ -1,0 +1,7 @@
+.env
+node_modules/
+dist/
+data/sessions.json
+data/desktop-monitor.json
+data/*.tmp
+*.log
