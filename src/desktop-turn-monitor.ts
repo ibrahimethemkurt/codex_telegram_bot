@@ -50,7 +50,7 @@ export class DesktopTurnMonitor {
 
       for (const summary of threads) {
         const project = summary.cwd ? projectByPath.get(normalizePath(summary.cwd)) : undefined;
-        if (!project || this.sessions.isManagedThread(summary.id)) {
+        if (!project) {
           continue;
         }
 
@@ -72,7 +72,9 @@ export class DesktopTurnMonitor {
         this.state.threads[summary.id] = { turnId, updatedAt: summary.updatedAt ?? null };
         changed = true;
 
-        if (!initializing && turn && turn.id !== previous?.turnId) {
+        const telegramManaged =
+          turn && (this.sessions.isManagedTurn(turn.id) || summary.name?.startsWith("Telegram ·"));
+        if (!initializing && turn && turn.id !== previous?.turnId && !telegramManaged) {
           await this.notify(project, summary, turn);
         }
       }
@@ -129,7 +131,12 @@ export class DesktopTurnMonitor {
 export function latestTerminalTurn(thread: StoredThread): StoredThreadTurn | undefined {
   return [...(thread.turns ?? [])]
     .reverse()
-    .find((turn) => turn.status !== "inProgress" && typeof turn.completedAt === "number");
+    .find(
+      (turn) =>
+        turn.status !== "inProgress" &&
+        typeof turn.completedAt === "number" &&
+        hasDeliverableResult(turn),
+    );
 }
 
 export function extractTurnResult(turn: StoredThreadTurn): { input?: string; output?: string } {
@@ -140,11 +147,15 @@ export function extractTurnResult(turn: StoredThreadTurn): { input?: string; out
     .filter((content) => content.type === "text" && typeof content.text === "string")
     .map((content) => content.text as string)
     .join("\n");
-  const finalMessage = [...agentMessages].reverse().find((item) => item.phase === "final_answer") ?? agentMessages.at(-1);
+  const finalMessage = [...agentMessages].reverse().find((item) => item.phase === "final_answer");
   return {
     ...(input ? { input } : {}),
     ...(finalMessage?.text ? { output: finalMessage.text } : {}),
   };
+}
+
+function hasDeliverableResult(turn: StoredThreadTurn): boolean {
+  return Boolean(extractTurnResult(turn).output);
 }
 
 function normalizePath(value: string): string {

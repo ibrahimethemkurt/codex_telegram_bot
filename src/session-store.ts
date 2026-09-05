@@ -9,12 +9,13 @@ const userSessionSchema = z.object({
 
 const storeSchema = z.object({
   users: z.record(z.string(), userSessionSchema).default({}),
+  managedTurns: z.array(z.string()).default([]),
 });
 
 type StoreData = z.infer<typeof storeSchema>;
 type UserSession = z.infer<typeof userSessionSchema>;
 
-const emptyStore = (): StoreData => ({ users: {} });
+const emptyStore = (): StoreData => ({ users: {}, managedTurns: [] });
 
 export class SessionStore {
   private data: StoreData = emptyStore();
@@ -63,6 +64,21 @@ export class SessionStore {
 
   isManagedThread(threadId: string): boolean {
     return Object.values(this.data.users).some((user) => Object.values(user.threads).includes(threadId));
+  }
+
+  async markManagedTurn(turnId: string): Promise<void> {
+    if (this.data.managedTurns.includes(turnId)) {
+      return;
+    }
+    this.data.managedTurns.push(turnId);
+    if (this.data.managedTurns.length > 1000) {
+      this.data.managedTurns.splice(0, this.data.managedTurns.length - 1000);
+    }
+    await this.save();
+  }
+
+  isManagedTurn(turnId: string): boolean {
+    return this.data.managedTurns.includes(turnId);
   }
 
   private async save(): Promise<void> {

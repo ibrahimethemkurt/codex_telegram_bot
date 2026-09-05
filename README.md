@@ -19,6 +19,7 @@ npm run dev
 ## Komutlar
 
 - `/projects`: Kayıtlı yerel projeleri listeler.
+- `/ping`: Botun çalıştığını ve komut alabildiğini doğrular.
 - `/sync`: İzin verilen ana klasörlerde yeni projeleri tarar.
 - `/current`: Aktif projeyi gösterir.
 - `/threads`: Aktif projedeki mevcut Codex görevlerinden birini seçip ona bağlanır.
@@ -26,7 +27,7 @@ npm run dev
 - `/new`: Aktif projede yeni Codex görevi başlatır.
 - `/ask <soru>`: Salt okunur sandbox ile soru sorar.
 - `/do <talimat>`: Yalnızca aktif proje klasöründe yazma izniyle görev çalıştırır.
-- `/status`: Aktif görevin durumunu gösterir.
+- `/status`: Aktif görevin isteğini, çalışma süresini ve son Telegram görevinin durumunu gösterir.
 - `/stop`: Aktif görevi durdurur.
 
 ## Güvenlik
@@ -46,7 +47,9 @@ Proje seçildiğinde gateway o projenin en son Codex görevine bağlanır. `/thr
 
 Codex masaüstünde açık bir görev aynı anda başka bir süreç tarafından doğrudan yazılamaz. Böyle bir görev seçildiğinde gateway otomatik olarak `thread/fork` kullanır: geçmişi kopyalayan, aynı proje klasöründe görünen yeni bir Telegram dalı açar ve komutu orada çalıştırır.
 
-Gateway, kayıtlı yerel projelerdeki masaüstü Codex görevlerini salt okunur `thread/read` çağrılarıyla izler. Yeni bir turun tamamlandığını gördüğünde proje adını, isteği ve son Codex mesajını Telegram'a gönderir. Gateway'in kendi başlattığı görevler ikinci kez bildirilmez. İzleme aralığı varsayılan olarak 5 saniyedir ve `DESKTOP_MONITOR_INTERVAL_MS` ile değiştirilebilir.
+Gateway, kayıtlı yerel projelerdeki masaüstü Codex görevlerini salt okunur `thread/read` çağrılarıyla izler. Yeni bir turun tamamlandığını gördüğünde proje adını, isteği ve son Codex mesajını Telegram'a gönderir. Gateway'in kendi başlattığı tur kimlikleri kalıcı olarak kaydedilir ve ikinci kez masaüstü bildirimi gibi gönderilmez. İzleme aralığı varsayılan olarak 5 saniyedir ve `DESKTOP_MONITOR_INTERVAL_MS` ile değiştirilebilir.
+
+Bot, zaman alan komutları alır almaz bir bekleme mesajı gönderir. Telegram'da gönderilmiş bir komut sonradan düzenlenirse özellikle yazma işlemlerinin iki kez çalışmasını önlemek için otomatik olarak yeniden yürütülmez; bot komutun yeni mesaj olarak gönderilmesini ister.
 
 ## Not
 
