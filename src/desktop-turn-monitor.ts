@@ -55,7 +55,7 @@ export class DesktopTurnMonitor {
         }
 
         const previous = this.state.threads[summary.id];
-        if (previous && previous.updatedAt === (summary.updatedAt ?? null)) {
+        if (previous && previous.updatedAt === (summary.updatedAt ?? null) && !isActiveThread(summary)) {
           continue;
         }
 
@@ -127,7 +127,9 @@ export class DesktopTurnMonitor {
 }
 
 export function latestTerminalTurn(thread: StoredThread): StoredThreadTurn | undefined {
-  return [...(thread.turns ?? [])].reverse().find((turn) => turn.status !== "inProgress");
+  return [...(thread.turns ?? [])]
+    .reverse()
+    .find((turn) => turn.status !== "inProgress" && typeof turn.completedAt === "number");
 }
 
 export function extractTurnResult(turn: StoredThreadTurn): { input?: string; output?: string } {
@@ -147,6 +149,10 @@ export function extractTurnResult(turn: StoredThreadTurn): { input?: string; out
 
 function normalizePath(value: string): string {
   return path.resolve(value).replace(/[\\/]+$/, "").toLocaleLowerCase("tr-TR");
+}
+
+function isActiveThread(thread: ThreadSummary): boolean {
+  return typeof thread.status === "string" ? thread.status === "active" : thread.status?.type === "active";
 }
 
 function truncate(value: string, length: number): string {
