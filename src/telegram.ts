@@ -9,6 +9,14 @@ type ActiveTurn = {
   turnId: string;
 };
 
+type ProjectActivity = {
+  state: "running" | "completed" | "interrupted" | "failed";
+  mode: AccessMode;
+  prompt: string;
+  startedAt: number;
+  finishedAt?: number;
+};
+
 type BotDependencies = {
   token: string;
   allowedUserIds: Set<number>;
@@ -24,6 +32,7 @@ export function createTelegramBot(deps: BotDependencies): Bot {
   const bot = new Bot(deps.token);
   const busyProjects = new Set<string>();
   const activeTurns = new Map<string, ActiveTurn>();
+  const projectActivities = new Map<string, ProjectActivity>();
 
   bot.command("whoami", async (ctx) => {
     const id = ctx.from?.id;
@@ -45,8 +54,10 @@ export function createTelegramBot(deps: BotDependencies): Bot {
 
   bot.command("start", (ctx) => ctx.reply(helpText()));
   bot.command("help", (ctx) => ctx.reply(helpText()));
+  bot.command("ping", (ctx) => ctx.reply("🟢 Bot çalışıyor ve komut almaya hazır."));
 
   bot.command("projects", async (ctx) => {
+    const progress = await ctx.reply("⏳ Projeler taranıyor...");
     const syncResult = await deps.syncProjects();
     const userId = requireUserId(ctx);
     const current = deps.sessions.getUser(userId).currentProject;
@@ -56,10 +67,13 @@ export function createTelegramBot(deps: BotDependencies): Bot {
     }
     const discoveryNote =
       syncResult.added.length > 0 ? `\n${syncResult.added.length} yeni proje otomatik eklendi.` : "";
-    await ctx.reply(`Bir proje seç:${discoveryNote}`, { reply_markup: keyboard });
+    await ctx.api.editMessageText(ctx.chat!.id, progress.message_id, `Bir proje seç:${discoveryNote}`, {
+      reply_markup: keyboard,
+    });
   });
 
   bot.command("sync", async (ctx) => {
+    const progress = await ctx.reply("⏳ Yeni projeler aranıyor...");
     const result = await deps.syncProjects();
     const addedNames = result.added.map((project) => `• ${project.name}`).join("\n");
     const lines = [
@@ -80,7 +94,7 @@ export function createTelegramBot(deps: BotDependencies): Bot {
         ...result.relocated.map((project) => `• ${project.name} → ${project.path}`),
       );
     }
-    await ctx.reply(lines.join("\n"));
+    await ctx.api.editMessageText(ctx.chat!.id, progress.message_id, lines.join("\n"));
   });
 
   bot.callbackQuery(/^project:(.+)$/, async (ctx) => {
@@ -121,6 +135,7 @@ export function createTelegramBot(deps: BotDependencies): Bot {
       await ctx.reply("Henüz proje seçilmedi. /projects yaz.");
       return;
     }
+    const progress = await ctx.reply("⏳ Aktif proje bilgisi okunuyor...");
     const userId = requireUserId(ctx);
     const selectedThreadId = deps.sessions.getUser(userId).threads[project.slug];
     const selectedThread = selectedThreadId
@@ -131,7 +146,11 @@ export function createTelegramBot(deps: BotDependencies): Bot {
       : selectedThreadId
         ? `\nBağlı görev: ${selectedThreadId}`
         : "\nBağlı görev yok.";
-    await ctx.reply(`Aktif proje: ${project.name}\n${project.path}${threadLine}`);
+    await ctx.api.editMessageText(
+      ctx.chat!.id,
+      progress.message_id,
+      `Aktif proje: ${project.name}\n${project.path}${threadLine}`,
+    );
   });
 
   bot.command("threads", async (ctx) => {
@@ -140,9 +159,14 @@ export function createTelegramBot(deps: BotDependencies): Bot {
       await ctx.reply("Önce /projects ile proje seç.");
       return;
     }
+    const progress = await ctx.reply("⏳ Codex görevleri okunuyor...");
     const threads = await deps.codex.listThreads(project.path);
     if (threads.length === 0) {
-      await ctx.reply("Bu proje için kayıtlı Codex görevi bulunamadı.");
+      await ctx.api.editMessageText(
+        ctx.chat!.id,
+        progress.message_id,
+        "Bu proje için kayıtlı Codex görevi bulunamadı.",
+      );
       return;
     }
     const userId = requireUserId(ctx);
@@ -153,9 +177,12 @@ export function createTelegramBot(deps: BotDependencies): Bot {
       const active = isActiveThread(thread) ? "🟢 " : "";
       keyboard.text(`${selected}${active}${truncate(threadTitle(thread), 42)}`, `thread:${thread.id}`).row();
     }
-    await ctx.reply("Devam etmek istediğin Codex görevini seç:\n🟢 açık görev seçilirse geçmişi korunarak Telegram için bir dal açılır.", {
-      reply_markup: keyboard,
-    });
+    await ctx.api.editMessageText(
+      ctx.chat!.id,
+      progress.message_id,
+      "Devam etmek istediğin Codex görevini seç:\n🟢 açık görev seçilirse geçmişi korunarak Telegram için bir dal açılır.",
+      { reply_markup: keyboard },
+    );
   });
 
   bot.callbackQuery(/^thread:(.+)$/, async (ctx) => {
@@ -186,13 +213,22 @@ export function createTelegramBot(deps: BotDependencies): Bot {
       await ctx.reply("Önce /projects ile proje seç.");
       return;
     }
+    const progress = await ctx.reply("⏳ En son Codex görevi aranıyor...");
     const latest = (await deps.codex.listThreads(project.path))[0];
     if (!latest) {
-      await ctx.reply("Bu projede bağlanılacak Codex görevi yok. /new ile oluşturabilirsin.");
+      await ctx.api.editMessageText(
+        ctx.chat!.id,
+        progress.message_id,
+        "Bu projede bağlanılacak Codex görevi yok. /new ile oluşturabilirsin.",
+      );
       return;
     }
     await deps.sessions.setThread(userId, project.slug, latest.id);
-    await ctx.reply(`En son Codex görevine bağlandım:\n${threadTitle(latest)}\n${latest.id}`);
+    await ctx.api.editMessageText(
+      ctx.chat!.id,
+      progress.message_id,
+      `En son Codex görevine bağlandım:\n${threadTitle(latest)}\n${latest.id}`,
+    );
   });
 
   bot.command("new", async (ctx) => {
@@ -202,9 +238,14 @@ export function createTelegramBot(deps: BotDependencies): Bot {
       await ctx.reply("Önce /projects ile proje seç.");
       return;
     }
+    const progress = await ctx.reply("⏳ Yeni Codex görevi hazırlanıyor...");
     const threadId = await deps.codex.startThread(project.path);
     await deps.sessions.setThread(userId, project.slug, threadId);
-    await ctx.reply(`Yeni Codex görevi hazır.\nProje: ${project.name}\nThread: ${threadId}`);
+    await ctx.api.editMessageText(
+      ctx.chat!.id,
+      progress.message_id,
+      `✅ Yeni Codex görevi hazır.\nProje: ${project.name}\nThread: ${threadId}`,
+    );
   });
 
   bot.command("ask", async (ctx) => {
@@ -221,7 +262,29 @@ export function createTelegramBot(deps: BotDependencies): Bot {
       await ctx.reply("Önce /projects ile proje seç.");
       return;
     }
-    await ctx.reply(busyProjects.has(project.slug) ? `${project.name}: görev çalışıyor.` : `${project.name}: boşta.`);
+    const activity = projectActivities.get(project.slug);
+    if (busyProjects.has(project.slug) && activity?.state === "running") {
+      await ctx.reply(
+        [
+          "🟠 Codex çalışıyor",
+          `Proje: ${project.name}`,
+          `İşlem: ${activity.mode === "workspaceWrite" ? "değişiklik yapılıyor" : "proje inceleniyor"}`,
+          `Süre: ${formatElapsed(activity.startedAt)}`,
+          `İstek: ${truncate(activity.prompt, 500)}`,
+        ].join("\n"),
+      );
+      return;
+    }
+
+    const progress = await ctx.reply("⏳ Codex durumu kontrol ediliyor...");
+    const activeDesktopThread = (await deps.codex.listThreads(project.path)).find(isActiveThread);
+    const lastActivity = activity
+      ? `\nSon Telegram görevi: ${activityLabel(activity.state)}\nİstek: ${truncate(activity.prompt, 300)}`
+      : "";
+    const text = activeDesktopThread
+      ? `🟡 Bot boşta; bilgisayarda açık veya çalışan bir Codex görevi var.\nProje: ${project.name}\nGörev: ${threadTitle(activeDesktopThread)}${lastActivity}`
+      : `⚪ Codex botu bu projede şu an boşta.\nProje: ${project.name}${lastActivity}`;
+    await ctx.api.editMessageText(ctx.chat!.id, progress.message_id, text);
   });
 
   bot.command("stop", async (ctx) => {
@@ -246,8 +309,23 @@ export function createTelegramBot(deps: BotDependencies): Bot {
     await runPrompt(ctx, ctx.message.text, "readOnly");
   });
 
-  bot.catch(({ error }) => {
+  bot.on("edited_message:text", async (ctx) => {
+    const editedText = ctx.update.edited_message.text;
+    if (editedText.startsWith("/")) {
+      await ctx.reply(
+        "⚠️ Düzenlenmiş komut güvenlik için yeniden çalıştırılmadı. Komutu yeni bir mesaj olarak tekrar gönder.",
+      );
+    }
+  });
+
+  bot.catch(async ({ ctx, error }) => {
     console.error("Telegram bot hatası:", error);
+    try {
+      const message = error instanceof Error ? error.message : String(error);
+      await ctx.reply(`❌ Komut tamamlanamadı: ${truncate(message, 700)}`);
+    } catch {
+      // Telegram'a hata cevabı da gönderilemiyorsa yalnızca sunucu kaydı kalır.
+    }
   });
 
   async function runPrompt(ctx: Context, prompt: string, mode: AccessMode): Promise<void> {
@@ -268,8 +346,17 @@ export function createTelegramBot(deps: BotDependencies): Bot {
     }
 
     busyProjects.add(project.slug);
+    const activity: ProjectActivity = {
+      state: "running",
+      mode,
+      prompt,
+      startedAt: Date.now(),
+    };
+    projectActivities.set(project.slug, activity);
     const statusMessage = await ctx.reply(
-      mode === "readOnly" ? `🔎 ${project.name} inceleniyor...` : `🛠️ ${project.name} üzerinde çalışılıyor...`,
+      mode === "readOnly"
+        ? `🔎 Komut alındı. ${project.name} inceleniyor...\nDurumu görmek için /status yaz.`
+        : `🛠️ Komut alındı. ${project.name} üzerinde çalışılıyor...\nDurumu görmek için /status yaz.`,
     );
 
     try {
@@ -286,6 +373,9 @@ export function createTelegramBot(deps: BotDependencies): Bot {
         const activeThreadId = threadId;
         result = await deps.codex.runTurn(activeThreadId, project.path, prompt, mode, (turnId) => {
           activeTurns.set(project.slug, { threadId: activeThreadId, turnId });
+          void deps.sessions.markManagedTurn(turnId).catch((error) => {
+            console.error("Telegram turu kaydedilemedi:", error);
+          });
         });
       } catch (error) {
         if (!isActiveWriterError(error)) {
@@ -299,14 +389,22 @@ export function createTelegramBot(deps: BotDependencies): Bot {
         const activeThreadId = threadId;
         result = await deps.codex.runTurn(activeThreadId, project.path, prompt, mode, (turnId) => {
           activeTurns.set(project.slug, { threadId: activeThreadId, turnId });
+          void deps.sessions.markManagedTurn(turnId).catch((error) => {
+            console.error("Telegram turu kaydedilemedi:", error);
+          });
         });
       }
       const resultText = result.text || result.error || `Görev ${result.status} durumuyla tamamlandı.`;
+      activity.state =
+        result.status === "completed" ? "completed" : result.status === "interrupted" ? "interrupted" : "failed";
+      activity.finishedAt = Date.now();
       const answer = forkedFromActive
         ? `🔀 Bilgisayarda açık görev meşgul olduğu için geçmişi korunarak yeni bir Telegram dalında çalıştırıldı.\n\n${resultText}`
         : resultText;
       await editThenSendRest(ctx, statusMessage.message_id, answer);
     } catch (error) {
+      activity.state = "failed";
+      activity.finishedAt = Date.now();
       const message = error instanceof Error ? error.message : String(error);
       await ctx.api.editMessageText(ctx.chat!.id, statusMessage.message_id, `❌ Hata: ${message}`);
     } finally {
@@ -337,6 +435,7 @@ function helpText(): string {
     "Codex Telegram Gateway",
     "",
     "/projects — proje seç",
+    "/ping — botun çalıştığını kontrol et",
     "/sync — yeni projeleri tara",
     "/current — aktif projeyi göster",
     "/threads — mevcut Codex görevini seç",
@@ -404,4 +503,18 @@ function truncate(value: string, length: number): string {
 function telegramThreadName(prompt: string): string {
   const firstLine = prompt.split(/\r?\n/, 1)[0]?.trim() || "Yeni görev";
   return `Telegram · ${truncate(firstLine, 70)}`;
+}
+
+function formatElapsed(startedAt: number): string {
+  const totalSeconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes} dk ${seconds} sn` : `${seconds} sn`;
+}
+
+function activityLabel(state: ProjectActivity["state"]): string {
+  if (state === "completed") return "✅ tamamlandı";
+  if (state === "interrupted") return "⏹️ durduruldu";
+  if (state === "failed") return "❌ başarısız";
+  return "🟠 çalışıyor";
 }
