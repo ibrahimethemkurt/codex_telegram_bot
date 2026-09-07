@@ -2,6 +2,7 @@ import os from "node:os";
 import path from "node:path";
 import { config as loadDotenv } from "dotenv";
 import { z } from "zod";
+import { resolveCodexBin } from "./codex-bin.js";
 
 loadDotenv();
 
@@ -60,7 +61,7 @@ export const appConfig = {
   sessionsFile: resolveFromGateway(parsed.SESSIONS_FILE),
   desktopMonitorFile: resolveFromGateway(parsed.DESKTOP_MONITOR_FILE),
   desktopMonitorIntervalMs: parsed.DESKTOP_MONITOR_INTERVAL_MS,
-  codexBin: parsed.CODEX_BIN,
+  codexBin: resolveCodexBin(parsed.CODEX_BIN),
   codexModel: parsed.CODEX_MODEL || undefined,
   projectRoots: parseProjectRoots(parsed.PROJECT_ROOTS),
   projectScanMaxDepth: parsed.PROJECT_SCAN_MAX_DEPTH,
