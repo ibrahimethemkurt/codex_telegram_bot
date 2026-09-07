@@ -53,6 +53,7 @@ async function main(): Promise<void> {
   const sessions = new SessionStore(appConfig.sessionsFile);
   await sessions.load();
 
+  console.log(`Codex çalıştırıcısı: ${appConfig.codexBin}`);
   const codex = new CodexAppServerClient(appConfig.codexBin, appConfig.codexModel);
   codex.on("log", (message: string) => console.log(`[codex] ${message}`));
   await codex.start();

@@ -16,6 +16,8 @@ npm run check
 npm run dev
 ```
 
+Windows'ta `CODEX_BIN=codex` bırakıldığında Gateway, Codex masaüstü uygulamasının resmi ve sürümlü kurulum klasörlerini tarar. Masaüstü uygulamasının sürüm klasörü değişse bile en güncel `codex.exe` otomatik seçilir. Böylece `spawn codex ENOENT` hatasını çözmek için `.env` içine sürüme bağlı mutlak bir yol yazmak gerekmez.
+
 ## Komutlar
 
 - `/projects`: Kayıtlı yerel projeleri listeler.
