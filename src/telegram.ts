@@ -15,6 +15,8 @@ type ProjectActivity = {
   prompt: string;
   startedAt: number;
   finishedAt?: number;
+  threadId?: string;
+  turnId?: string;
 };
 
 type BotDependencies = {
@@ -248,12 +250,12 @@ export function createTelegramBot(deps: BotDependencies): Bot {
     );
   });
 
-  bot.command("ask", async (ctx) => {
-    await runPrompt(ctx, String(ctx.match ?? "").trim(), "readOnly");
+  bot.command("ask", (ctx) => {
+    launchPrompt(ctx, String(ctx.match ?? "").trim(), "readOnly");
   });
 
-  bot.command("do", async (ctx) => {
-    await runPrompt(ctx, String(ctx.match ?? "").trim(), "workspaceWrite");
+  bot.command("do", (ctx) => {
+    launchPrompt(ctx, String(ctx.match ?? "").trim(), "workspaceWrite");
   });
 
   bot.command("status", async (ctx) => {
@@ -264,12 +266,16 @@ export function createTelegramBot(deps: BotDependencies): Bot {
     }
     const activity = projectActivities.get(project.slug);
     if (busyProjects.has(project.slug) && activity?.state === "running") {
+      const taskLines = activity.threadId
+        ? [`Codex görevi: ${activity.threadId}`, activity.turnId ? `Aktif tur: ${activity.turnId}` : "Aşama: tur hazırlanıyor"]
+        : ["Aşama: Codex görevi hazırlanıyor"];
       await ctx.reply(
         [
           "🟠 Codex çalışıyor",
           `Proje: ${project.name}`,
           `İşlem: ${activity.mode === "workspaceWrite" ? "değişiklik yapılıyor" : "proje inceleniyor"}`,
           `Süre: ${formatElapsed(activity.startedAt)}`,
+          ...taskLines,
           `İstek: ${truncate(activity.prompt, 500)}`,
         ].join("\n"),
       );
@@ -302,11 +308,11 @@ export function createTelegramBot(deps: BotDependencies): Bot {
     await ctx.reply("Durdurma isteği gönderildi.");
   });
 
-  bot.on("message:text", async (ctx) => {
+  bot.on("message:text", (ctx) => {
     if (ctx.message.text.startsWith("/")) {
       return;
     }
-    await runPrompt(ctx, ctx.message.text, "readOnly");
+    launchPrompt(ctx, ctx.message.text, "readOnly");
   });
 
   bot.on("edited_message:text", async (ctx) => {
@@ -327,6 +333,20 @@ export function createTelegramBot(deps: BotDependencies): Bot {
       // Telegram'a hata cevabı da gönderilemiyorsa yalnızca sunucu kaydı kalır.
     }
   });
+
+  function launchPrompt(ctx: Context, prompt: string, mode: AccessMode): void {
+    // Uzun Codex turunu Telegram update işleyicisinden ayır. Böylece aynı tur
+    // sürerken /status ve /stop gibi yeni komutlar hemen işlenebilir.
+    void runPrompt(ctx, prompt, mode).catch(async (error) => {
+      console.error("Arka plan Telegram görevi başlatılamadı:", error);
+      try {
+        const message = error instanceof Error ? error.message : String(error);
+        await ctx.reply(`❌ Komut başlatılamadı: ${truncate(message, 700)}`);
+      } catch {
+        // Telegram'a hata cevabı da gönderilemiyorsa yalnızca sunucu kaydı kalır.
+      }
+    });
+  }
 
   async function runPrompt(ctx: Context, prompt: string, mode: AccessMode): Promise<void> {
     if (!prompt) {
@@ -366,12 +386,14 @@ export function createTelegramBot(deps: BotDependencies): Bot {
         threadId = latestThread?.id ?? (await deps.codex.startThread(project.path));
         await deps.sessions.setThread(userId, project.slug, threadId);
       }
+      activity.threadId = threadId;
 
       let forkedFromActive = false;
       let result;
       try {
         const activeThreadId = threadId;
         result = await deps.codex.runTurn(activeThreadId, project.path, prompt, mode, (turnId) => {
+          activity.turnId = turnId;
           activeTurns.set(project.slug, { threadId: activeThreadId, turnId });
           void deps.sessions.markManagedTurn(turnId).catch((error) => {
             console.error("Telegram turu kaydedilemedi:", error);
@@ -385,9 +407,12 @@ export function createTelegramBot(deps: BotDependencies): Bot {
         threadId = await deps.codex.forkThread(originalThreadId, project.path);
         await deps.codex.setThreadName(threadId, telegramThreadName(prompt));
         await deps.sessions.setThread(userId, project.slug, threadId);
+        activity.threadId = threadId;
+        delete activity.turnId;
         forkedFromActive = true;
         const activeThreadId = threadId;
         result = await deps.codex.runTurn(activeThreadId, project.path, prompt, mode, (turnId) => {
+          activity.turnId = turnId;
           activeTurns.set(project.slug, { threadId: activeThreadId, turnId });
           void deps.sessions.markManagedTurn(turnId).catch((error) => {
             console.error("Telegram turu kaydedilemedi:", error);
