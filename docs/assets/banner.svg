@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="420" viewBox="0 0 1400 420" role="img" aria-labelledby="title desc">
+  <title id="title">Codex Telegram Gateway</title>
+  <desc id="desc">Telegram messages flowing through a secure local gateway into Codex projects.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#07111f"/><stop offset=".55" stop-color="#101b36"/><stop offset="1" stop-color="#172554"/></linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2aabee"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1400" height="420" rx="34" fill="url(#bg)"/>
+  <circle cx="1180" cy="80" r="180" fill="#2aabee" opacity=".08"/><circle cx="180" cy="400" r="230" fill="#7c3aed" opacity=".1"/>
+  <g opacity=".16" fill="none" stroke="#b8d8ff"><path d="M0 88h1400M0 332h1400"/><path d="M210 0v420M1190 0v420"/></g>
+  <g transform="translate(110 96)">
+    <rect width="170" height="228" rx="34" fill="#0b1629" stroke="#2aabee" stroke-width="3"/>
+    <rect x="20" y="34" width="130" height="48" rx="16" fill="#14233b"/>
+    <path d="M48 60l70-28-25 74-17-27z" fill="#2aabee"/><path d="M76 79l42-47-31 54" fill="none" stroke="#e9f7ff" stroke-width="4" stroke-linecap="round"/>
+    <rect x="20" y="100" width="104" height="18" rx="9" fill="#213958"/><rect x="46" y="132" width="104" height="18" rx="9" fill="#263657"/><rect x="20" y="178" width="130" height="30" rx="15" fill="url(#accent)" opacity=".9"/>
+  </g>
+  <g transform="translate(316 182)" filter="url(#glow)"><path d="M0 28h112" stroke="url(#accent)" stroke-width="5" stroke-linecap="round"/><path d="M92 8l22 20-22 20" fill="none" stroke="#7dd3fc" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <g transform="translate(475 112)">
+    <rect width="170" height="196" rx="28" fill="#111d34" stroke="#8b5cf6" stroke-width="3"/>
+    <path d="M54 72l31-18 31 18v36l-31 18-31-18z" fill="none" stroke="url(#accent)" stroke-width="7" stroke-linejoin="round"/><circle cx="85" cy="90" r="12" fill="#eef2ff"/>
+    <text x="85" y="163" fill="#c7d2fe" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="18" text-anchor="middle">LOCAL</text>
+  </g>
+  <g transform="translate(684 182)" filter="url(#glow)"><path d="M0 28h112" stroke="url(#accent)" stroke-width="5" stroke-linecap="round"/><path d="M92 8l22 20-22 20" fill="none" stroke="#a78bfa" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <g transform="translate(840 102)">
+    <rect width="430" height="216" rx="28" fill="#091321" stroke="#334b72" stroke-width="3"/>
+    <circle cx="30" cy="28" r="6" fill="#fb7185"/><circle cx="50" cy="28" r="6" fill="#fbbf24"/><circle cx="70" cy="28" r="6" fill="#4ade80"/>
+    <text x="34" y="88" fill="#7dd3fc" font-family="ui-monospace,SFMono-Regular,Consolas,monospace" font-size="23">$ codex app-server</text>
+    <text x="34" y="130" fill="#dbeafe" font-family="ui-monospace,SFMono-Regular,Consolas,monospace" font-size="21">✓ workspace selected</text>
+    <text x="34" y="172" fill="#c4b5fd" font-family="ui-monospace,SFMono-Regular,Consolas,monospace" font-size="21">✓ task completed</text>
+  </g>
+  <text x="700" y="58" fill="#fff" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="36" font-weight="700" text-anchor="middle">CODEX TELEGRAM GATEWAY</text>
+  <text x="700" y="384" fill="#a9bdd8" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="21" text-anchor="middle">Your local Codex projects, safely accessible from your pocket.</text>
+</svg>

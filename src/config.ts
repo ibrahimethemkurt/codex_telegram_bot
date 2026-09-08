@@ -1,5 +1,6 @@
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { config as loadDotenv } from "dotenv";
 import { z } from "zod";
 import { resolveCodexBin } from "./codex-bin.js";
@@ -21,9 +22,10 @@ const envSchema = z.object({
 });
 
 const parsed = envSchema.parse(process.env);
+const gatewayRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function resolveFromGateway(value: string): string {
-  return path.isAbsolute(value) ? value : path.resolve(process.cwd(), value);
+  return path.isAbsolute(value) ? value : path.resolve(gatewayRoot, value);
 }
 
 function parseAllowedUserIds(value: string): Set<number> {
@@ -42,7 +44,7 @@ function parseAllowedUserIds(value: string): Set<number> {
 
 function parseProjectRoots(value: string): string[] {
   const configured = value
-    .split(";")
+    .split(path.delimiter)
     .map((part) => part.trim())
     .filter(Boolean)
     .map((part) => path.resolve(part));
@@ -51,7 +53,7 @@ function parseProjectRoots(value: string): string[] {
     return configured;
   }
 
-  return [path.join(os.homedir(), "Desktop"), path.join(os.homedir(), "Documents", "ChatGPT")];
+  return [path.join(os.homedir(), "Desktop"), path.join(os.homedir(), "Documents")];
 }
 
 export const appConfig = {
@@ -66,5 +68,5 @@ export const appConfig = {
   projectRoots: parseProjectRoots(parsed.PROJECT_ROOTS),
   projectScanMaxDepth: parsed.PROJECT_SCAN_MAX_DEPTH,
   projectAutoAddDepth: parsed.PROJECT_AUTO_ADD_DEPTH,
-  excludedProjectPaths: [process.cwd()],
+  excludedProjectPaths: [gatewayRoot],
 };

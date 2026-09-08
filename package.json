@@ -7,21 +7,24 @@
     "node": ">=20"
   },
   "scripts": {
+    "setup": "tsx src/setup.ts",
+    "doctor": "tsx src/doctor.ts",
     "dev": "tsx src/index.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --test tests/*.test.ts",
+    "security:check": "node scripts/security-check.mjs",
     "start": "node dist/index.js",
-    "check": "npm run typecheck && npm run test && npm run build"
+    "check": "npm run typecheck && npm run test && npm run security:check && npm run build"
   },
   "dependencies": {
-    "dotenv": "latest",
-    "grammy": "latest",
-    "zod": "latest"
+    "dotenv": "17.4.2",
+    "grammy": "1.46.0",
+    "zod": "4.5.4"
   },
   "devDependencies": {
-    "@types/node": "latest",
-    "tsx": "latest",
-    "typescript": "latest"
+    "@types/node": "26.4.1",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2"
   }
 }

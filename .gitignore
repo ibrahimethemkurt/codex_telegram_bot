@@ -1,7 +1,11 @@
 .env
+.env.*
+!.env.example
 node_modules/
 dist/
-data/sessions.json
-data/desktop-monitor.json
-data/*.tmp
+coverage/
+config/projects.json
+data/
 *.log
+.DS_Store
+*.tmp
