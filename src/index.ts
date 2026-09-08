@@ -47,7 +47,7 @@ async function main(): Promise<void> {
 
   const initialSync = await syncProjects();
   if (initialSync.projects.length === 0) {
-    throw new Error("Erişilebilen yerel proje klasörü bulunamadı.");
+    console.warn("Henüz yerel proje bulunamadı. PROJECT_ROOTS ayarını güncelleyin ve Telegram'da /sync yazın.");
   }
 
   const sessions = new SessionStore(appConfig.sessionsFile);
@@ -90,7 +90,7 @@ async function main(): Promise<void> {
 
   console.log(`${projects.length} yerel proje yüklendi.`);
   console.log("Telegram bot başlatılıyor...");
-  await bot.start({ allowed_updates: ["message", "callback_query"] });
+  await bot.start({ allowed_updates: ["message", "edited_message", "callback_query"] });
 }
 
 main().catch((error) => {

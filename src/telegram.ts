@@ -36,6 +36,16 @@ export function createTelegramBot(deps: BotDependencies): Bot {
   const activeTurns = new Map<string, ActiveTurn>();
   const projectActivities = new Map<string, ProjectActivity>();
 
+  bot.use(async (ctx, next) => {
+    if (ctx.chat?.type !== "private") {
+      if (ctx.message?.text?.startsWith("/")) {
+        await ctx.reply("🔒 Güvenlik nedeniyle bu bot yalnızca özel sohbetlerde çalışır.");
+      }
+      return;
+    }
+    await next();
+  });
+
   bot.command("whoami", async (ctx) => {
     const id = ctx.from?.id;
     await ctx.reply(id ? `Telegram kullanıcı ID'n: ${id}` : "Kullanıcı ID bulunamadı.");
@@ -63,6 +73,14 @@ export function createTelegramBot(deps: BotDependencies): Bot {
     const syncResult = await deps.syncProjects();
     const userId = requireUserId(ctx);
     const current = deps.sessions.getUser(userId).currentProject;
+    if (deps.projects.length === 0) {
+      await ctx.api.editMessageText(
+        ctx.chat!.id,
+        progress.message_id,
+        "Yerel proje bulunamadı. .env içindeki PROJECT_ROOTS değerini proje klasörlerinizi kapsayacak şekilde ayarlayın, ardından /sync yazın.",
+      );
+      return;
+    }
     const keyboard = new InlineKeyboard();
     for (const project of deps.projects) {
       keyboard.text(`${current === project.slug ? "✅ " : ""}${project.name}`, `project:${project.slug}`).row();

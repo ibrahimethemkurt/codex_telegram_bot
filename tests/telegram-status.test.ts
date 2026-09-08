@@ -107,14 +107,74 @@ test("status responds while a detached do task is still running", async () => {
   await new Promise((resolve) => setImmediate(resolve));
 });
 
-function commandUpdate(updateId: number, text: string): Update {
+test("commands are rejected outside private Telegram chats", async () => {
+  let runTurnCalled = false;
+  const sessions = {
+    getUser: () => ({ currentProject: PROJECT.slug, threads: { [PROJECT.slug]: "thread-1" } }),
+  } as unknown as SessionStore;
+  const codex = {
+    runTurn: async () => {
+      runTurnCalled = true;
+      return { turnId: "turn-1", status: "completed", text: "Tamamlandı" };
+    },
+  } as unknown as CodexAppServerClient;
+  const bot = createTelegramBot({
+    token: "123:test",
+    allowedUserIds: new Set([USER_ID]),
+    projects: [PROJECT],
+    sessions,
+    codex,
+    syncProjects: async () => ({
+      projects: [PROJECT],
+      added: [],
+      relocated: [],
+      missing: [],
+      unavailableRoots: [],
+    }),
+  });
+  const sentTexts: string[] = [];
+  bot.api.config.use(async (_prev, method, payload) => {
+    if (method === "getMe") {
+      return {
+        ok: true,
+        result: {
+          id: 123,
+          is_bot: true,
+          first_name: "Test Bot",
+          username: "test_bot",
+          can_join_groups: false,
+          can_read_all_group_messages: false,
+          supports_inline_queries: false,
+          can_connect_to_business: false,
+          has_main_web_app: false,
+        },
+      } as ApiResponse;
+    }
+    if (method === "sendMessage") {
+      sentTexts.push(String((payload as { text?: string }).text ?? ""));
+      return {
+        ok: true,
+        result: { message_id: 1, date: 1, chat: { id: -100, type: "group" } },
+      } as ApiResponse;
+    }
+    return { ok: true, result: true } as ApiResponse;
+  });
+  await bot.init();
+
+  await bot.handleUpdate(commandUpdate(3, "/do değiştirme", "group"));
+
+  assert.equal(runTurnCalled, false);
+  assert.match(sentTexts[0] ?? "", /yalnızca özel sohbetlerde/);
+});
+
+function commandUpdate(updateId: number, text: string, chatType: "private" | "group" = "private"): Update {
   const command = text.split(" ", 1)[0] ?? text;
   return {
     update_id: updateId,
     message: {
       message_id: updateId,
       date: 1,
-      chat: { id: USER_ID, type: "private" },
+      chat: { id: chatType === "private" ? USER_ID : -100, type: chatType, title: chatType === "group" ? "Test" : undefined },
       from: { id: USER_ID, is_bot: false, first_name: "Test" },
       text,
       entities: [{ offset: 0, length: command.length, type: "bot_command" }],

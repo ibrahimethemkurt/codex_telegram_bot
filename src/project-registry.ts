@@ -11,11 +11,19 @@ const projectSchema = z.object({
 });
 
 const registrySchema = z.object({
-  projects: z.array(projectSchema).min(1),
+  projects: z.array(projectSchema).default([]),
 });
 
 export async function loadProjects(filePath: string): Promise<Project[]> {
-  const raw = await readFile(filePath, "utf8");
+  let raw: string;
+  try {
+    raw = await readFile(filePath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
   const parsed = registrySchema.parse(JSON.parse(raw));
   const seen = new Set<string>();
 

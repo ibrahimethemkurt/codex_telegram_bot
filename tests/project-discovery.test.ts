@@ -59,6 +59,26 @@ test("sync persists newly discovered projects and reports missing records", asyn
   }
 });
 
+test("first sync creates a local registry when projects.json does not exist", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "codex-gateway-first-sync-"));
+  try {
+    const project = path.join(root, "FirstProject");
+    await mkdir(path.join(project, ".git"), { recursive: true });
+    const registryFile = path.join(root, "config", "projects.json");
+
+    const result = await syncProjectRegistry(registryFile, [root], 2, 1);
+
+    assert.equal(result.projects.length, 1);
+    assert.equal(result.added[0]?.name, "FirstProject");
+    const persisted = JSON.parse(await import("node:fs/promises").then((fs) => fs.readFile(registryFile, "utf8"))) as {
+      projects: Array<{ name: string }>;
+    };
+    assert.equal(persisted.projects[0]?.name, "FirstProject");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("sync relocates a uniquely matched missing project without adding nested projects", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "codex-gateway-relocate-"));
   try {
